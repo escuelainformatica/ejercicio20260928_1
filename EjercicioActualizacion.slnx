@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Consola1/Consola1.csproj" />
+  <Project Path="ConsolaTest1/ConsolaTest1.csproj" />
+  <Project Path="Libreria1/Libreria1.csproj" />
+  <Project Path="SeguridadTest1/SeguridadTest1.csproj" />
+  <Project Path="WebApi1/WebApi1.csproj" />
+  <Project Path="WebApiTest1/WebApiTest1.csproj" />
+</Solution>

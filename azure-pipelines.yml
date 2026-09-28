@@ -1,0 +1,125 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-22.04
+
+variables:
+  buildConfiguration: Release
+  solution: EjercicioActualizacion.slnx
+  webApiUrl: http://localhost:5500
+  testResultsDir: $(Agent.TempDirectory)/TestResults
+  coverageDir: $(Build.SourcesDirectory)/CoverageResults
+
+steps:
+- checkout: self
+
+- task: UseDotNet@2
+  displayName: Use .NET 6 SDK
+  inputs:
+    packageType: sdk
+    version: 6.0.x
+
+- task: DotNetCoreCLI@2
+  displayName: Restore NuGet packages
+  inputs:
+    command: restore
+    projects: $(solution)
+
+- task: DotNetCoreCLI@2
+  displayName: Build solution
+  inputs:
+    command: build
+    projects: $(solution)
+    arguments: --configuration $(buildConfiguration) --no-restore
+
+- task: DotNetCoreCLI@2
+  displayName: Run unit tests
+  inputs:
+    command: test
+    projects: ConsolaTest1/ConsolaTest1.csproj
+    arguments: --configuration $(buildConfiguration) --no-build --no-restore --logger "trx;LogFileName=unit.trx" --results-directory $(testResultsDir)/Unit
+    publishTestResults: false
+
+- task: PublishTestResults@2
+  displayName: Publish unit test results
+  inputs:
+    testResultsFormat: VSTest
+    testResultsFiles: unit.trx
+    searchFolder: $(testResultsDir)/Unit
+    mergeTestResults: true
+    failTaskOnFailedTests: true
+
+- task: Bash@3
+  displayName: Start WebAPI in background
+  inputs:
+    targetType: inline
+    script: |
+      set -e
+      nohup dotnet run --project WebApi1/WebApi1.csproj --configuration $(buildConfiguration) --no-build --urls $(webApiUrl) > $(Agent.TempDirectory)/webapi.log 2>&1 &
+      for i in {1..30}; do
+        if curl -fsS $(webApiUrl)/api/carrocompra > /dev/null; then
+          echo "WebAPI is ready"
+          exit 0
+        fi
+        sleep 2
+      done
+      cat $(Agent.TempDirectory)/webapi.log
+      exit 1
+
+- task: DotNetCoreCLI@2
+  displayName: Run integration tests
+  inputs:
+    command: test
+    projects: WebApiTest1/WebApiTest1.csproj
+    arguments: --configuration $(buildConfiguration) --no-build --no-restore --logger "trx;LogFileName=integration.trx" --results-directory $(testResultsDir)/Integration
+    publishTestResults: false
+
+- task: PublishTestResults@2
+  displayName: Publish integration test results
+  inputs:
+    testResultsFormat: VSTest
+    testResultsFiles: integration.trx
+    searchFolder: $(testResultsDir)/Integration
+    mergeTestResults: true
+    failTaskOnFailedTests: true
+
+- task: DotNetCoreCLI@2
+  displayName: Run security tests
+  inputs:
+    command: test
+    projects: SeguridadTest1/SeguridadTest1.csproj
+    arguments: --configuration $(buildConfiguration) --no-build --no-restore --logger "trx;LogFileName=security.trx" --results-directory $(testResultsDir)/Security
+    publishTestResults: false
+
+- task: PublishTestResults@2
+  displayName: Publish security test results
+  inputs:
+    testResultsFormat: VSTest
+    testResultsFiles: security.trx
+    searchFolder: $(testResultsDir)/Security
+    mergeTestResults: true
+    failTaskOnFailedTests: true
+
+- task: Bash@3
+  displayName: Run code coverage
+  inputs:
+    targetType: inline
+    script: |
+      set -e
+      rm -rf "$(coverageDir)"
+      mkdir -p "$(coverageDir)"
+      dotnet test ConsolaTest1/ConsolaTest1.csproj --configuration $(buildConfiguration) --no-build --no-restore --collect:"XPlat Code Coverage" --results-directory $(testResultsDir)/Coverage
+      coverageFile=$(find "$(testResultsDir)/Coverage" -name coverage.cobertura.xml | head -n 1)
+      if [ -z "$coverageFile" ]; then
+        echo "Coverage file not found"
+        exit 1
+      fi
+      cp "$coverageFile" "$(coverageDir)/Cobertura.xml"
+
+- task: PublishCodeCoverageResults@2
+  displayName: Publish code coverage results
+  inputs:
+    codeCoverageTool: Cobertura
+    summaryFileLocation: $(coverageDir)/Cobertura.xml
+    failIfCoverageEmpty: true

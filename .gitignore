@@ -1,0 +1,37 @@
+## Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+## Build results
+TestResults/
+CoverageResults/
+coverage*
+
+## NuGet
+packages/
+*.nupkg
+*.snupkg
+
+## Logs
+*.log
+
+## IDE files
+.vscode/
+.idea/
+
+## OS files
+.DS_Store
+Thumbs.db
+
+## Publish output
+publish/
+wwwroot/
+
+## EF Core
+Migrations/
