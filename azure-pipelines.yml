@@ -24,13 +24,13 @@ steps:
   displayName: Restore NuGet packages
   inputs:
     command: restore
-    projects: $(solution)
+    projects: '**/*.csproj'
 
 - task: DotNetCoreCLI@2
   displayName: Build solution
   inputs:
     command: build
-    projects: $(solution)
+    projects: '**/*.csproj'
     arguments: --configuration $(buildConfiguration) --no-restore
 
 - task: DotNetCoreCLI@2
